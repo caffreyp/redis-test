@@ -1,0 +1,4 @@
+To build examples use
+
+gcc -I../hiredis -o example_2 example_2.c -lhiredis
+
