@@ -6,6 +6,25 @@
 #include <time.h>
 
 //
+// This function gived the difference between two times (timespecs)
+//
+struct timespec diff(struct timespec start, struct timespec end)
+{
+    struct timespec temp;
+    if ((end.tv_nsec-start.tv_nsec)<0)
+    {
+      temp.tv_sec = end.tv_sec-start.tv_sec-1;
+      temp.tv_nsec = 1000000000+end.tv_nsec-start.tv_nsec;
+    }
+    else
+    {
+      temp.tv_sec = end.tv_sec-start.tv_sec;
+      temp.tv_nsec = end.tv_nsec-start.tv_nsec;
+    }
+    return temp;
+}
+
+//
 // Main program
 //
 int main(int argc, char **argv) 
@@ -18,7 +37,7 @@ int main(int argc, char **argv)
     struct timeval timeout = { 1, 500000 }; // 1.5 seconds
     char *page_1 = NULL;
     char *page_2 = NULL;
-    clock_t start_time=0, end_time =0;
+    struct timespec start_time, end_time, diff_time;
 
     //
     // Connect to REDIS service, returns a connection context
@@ -64,24 +83,25 @@ int main(int argc, char **argv)
     //
     // SET the key using binary safe API
     //
-    start_time = clock();
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
     for( j=0; j<10000; j++ )
       reply = redisCommand(c,"SET %b %b", "page_1", (size_t) 6, page_1, (size_t) 1024);
     freeReplyObject(reply);
-
-    end_time = clock();
-    printf(" Time for 10000 SET commands %ld (us) %ld us per SET\n", end_time - start_time, (end_time - start_time) / 10000 );
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end_time);
+    diff_time = diff(start_time, end_time);
+    printf(" Time for 10000 SET commands %ld (us) %f us per SET\n", diff_time.tv_nsec/1000, diff_time.tv_nsec / (10000.0 * 1000) );
 
     //
     // GET the key
     //
-    start_time = clock();
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start_time);
     for( j=0; j<10000; j++ )
       reply = redisCommand(c,"GET page_1");
     freeReplyObject(reply);
 
-    end_time = clock();
-    printf(" Time for 10000 GET commands %ld (us) %ld us per GET\n", end_time - start_time, (end_time - start_time) / 10000 );
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end_time);
+    diff_time = diff(start_time, end_time);
+    printf(" Time for 10000 GET commands %ld (us) %f us per GET\n", diff_time.tv_nsec/1000, diff_time.tv_nsec / (10000.0 * 1000) );
 
     //
     // Disconnects and frees the context
@@ -95,4 +115,3 @@ int main(int argc, char **argv)
 
     return 0;
 }
-
